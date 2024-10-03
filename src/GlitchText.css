@@ -1,0 +1,69 @@
+/* App.css */
+.glitch--3 [data-char] {
+    --split: 50;
+    color: transparent;
+    position: relative;
+    animation: glitch--3 1.5s infinite ease-in-out alternate-reverse;
+}
+
+.glitch--3 [data-char]::after,
+.glitch--3 [data-char]::before {
+    content: attr(data-char);
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    color: white;
+    clip-path: var(--clip);
+}
+
+.glitch--3 [data-char]::after {
+    transform: translate(calc(var(--shift) * 1%), 0);
+    --clip: inset(0 0 calc(var(--split) * 1%) 0);
+    text-shadow: calc(var(--shadow) * 1px) calc(var(--shadow) * 1px) #ff0000;
+}
+
+.glitch--3 [data-char]::before {
+    --clip: inset(calc((95 - var(--split)) * 1%) 0 0 0);
+}
+
+@keyframes glitch--3 {
+    0% {
+        --split: 20;
+        --shift: 15;
+        --shadow: -2;
+    }
+
+    5% {
+        --split: 30;
+        --shift: 15;
+        --shadow: -2;
+    }
+
+    10% {
+        --split: 80;
+        --shift: 10;
+        --shadow: -2;
+    }
+
+    15% {
+        --split: 55;
+        --shift: 10;
+        --shadow: -2;
+    }
+
+    20% {}
+
+    50% {
+        --split: 0;
+        --shift: 0;
+        --shadow: 0;
+    }
+
+    100% {
+        --split: 0;
+        --shift: 0;
+        --shadow: 0;
+    }
+}
