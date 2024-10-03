@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { doc, getDoc, setDoc } from "firebase/firestore"; // getDoc으로 기존 문서 조회
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { storage, db } from "../firebase";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -31,9 +31,19 @@ const Input = styled.input`
     border-radius: 4px;
 `;
 
+const Input2 = styled.input`
+    display: block;
+    width: 97%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+`;
+
 const Textarea = styled.textarea`
     display: block;
     width: 100%;
+    height: 200px;
     padding: 10px;
     margin: 10px 0;
     border: 1px solid #ccc;
@@ -58,6 +68,22 @@ const Button = styled.button`
     }
 `;
 
+const Progress = styled.div`
+    margin: 10px 0;
+    height: 20px;
+    background-color: #f3f3f3;
+    border-radius: 5px;
+`;
+
+const ProgressBar = styled.div`
+    height: 100%;
+    width: ${props => props.progress}%;
+    background-color: #4CAF50;
+    border-radius: 5px;
+    text-align: center;
+    color: white;
+`;
+
 const FileInput = styled.input`
     margin: 10px 0;
 `;
@@ -70,7 +96,8 @@ const Label = styled.label`
 
 const TeamMemberContainer = styled.div`
     border: 1px solid #ccc;
-    padding: 15px;
+    padding: 10px;
+    width: 100%;
     margin-bottom: 15px;
     border-radius: 4px;
 `;
@@ -115,7 +142,13 @@ const ProjectUpload = () => {
     const [thumbnail, setThumbnail] = useState(null);
     const [mainImage, setMainImage] = useState(null);
     const [infoImage, setInfoImage] = useState(null);
-    const [isUploading, setIsUploading] = useState(false); 
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({
+        thumbnail: 0,
+        mainImage: 0,
+        infoImage: 0
+    }); // 각 파일의 업로드 진행률 상태
+    const [showAddButton, setShowAddButton] = useState(true); // 팀원추가 버튼 제어
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -123,7 +156,7 @@ const ProjectUpload = () => {
         if (location.state && location.state.userId) {
             const userId = location.state.userId;
             setProjectId(userId);
-            fetchProjectData(userId); // 로그인한 사용자에 해당하는 프로젝트 데이터 불러오기
+            fetchProjectData(userId);
         } else {
             navigate('/');
         }
@@ -144,7 +177,7 @@ const ProjectUpload = () => {
                 setTeamMembers(projectData.teamMembers || [
                     { name: "", englishName: "", department: "", email: "", instagram: "", profilePic: null }
                 ]);
-                setThumbnail(null); // 기존 URL을 불러올 수 있지만 다시 업로드 받는 것이 안전
+                setThumbnail(null);
                 setMainImage(null);
                 setInfoImage(null);
             }
@@ -160,16 +193,26 @@ const ProjectUpload = () => {
     };
 
     const addTeamMember = () => {
-        setTeamMembers([
-            ...teamMembers,
-            { name: "", englishName: "", department: "", email: "", instagram: "", profilePic: null }
-        ]);
+        if (teamMembers.length < 2) {
+            setTeamMembers([
+                ...teamMembers,
+                { name: "", englishName: "", department: "", email: "", instagram: "", profilePic: null }
+            ]);
+
+            if (teamMembers.length + 1 === 2) {
+                setShowAddButton(false);
+            }
+        }
     };
 
     const removeTeamMember = (index) => {
         const updatedMembers = [...teamMembers];
         updatedMembers.splice(index, 1);
         setTeamMembers(updatedMembers);
+
+        if (teamMembers.length - 1 < 2) {
+            setShowAddButton(true);
+        }
     };
 
     const handleFileChange = (setter) => (e) => {
@@ -190,6 +233,11 @@ const ProjectUpload = () => {
                 alert("모든 팀원 정보를 채워주세요.");
                 return false;
             }
+
+            if (!member.profilePic) {
+                alert(`팀원 ${i + 1}의 프로필 사진을 추가해주세요.`);
+                return false;
+            }
         }
 
         return true;
@@ -198,40 +246,80 @@ const ProjectUpload = () => {
     const handleUpload = async () => {
         if (!validateForm()) return;
 
-        setIsUploading(true); // 업로드 중 상태
+        setIsUploading(true);
 
         try {
             const imageUrls = {};
+            const uploadPromises = [];
+
+            const uploadFileWithProgress = (file, path, type) => {
+                return new Promise((resolve, reject) => {
+                    const fileRef = ref(storage, path);
+                    const uploadTask = uploadBytesResumable(fileRef, file);
+
+                    uploadTask.on(
+                        "state_changed",
+                        (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress((prev) => ({
+                                ...prev,
+                                [type]: progress,
+                            }));
+                        },
+                        (error) => {
+                            reject(error);
+                        },
+                        async () => {
+                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                            resolve(downloadURL);
+                        }
+                    );
+                });
+            };
 
             if (thumbnail) {
-                const thumbnailRef = ref(storage, `projects/${projectId}/thumbnail.jpg`);
-                const snapshot = await uploadBytesResumable(thumbnailRef, thumbnail);
-                imageUrls.thumbnail = await getDownloadURL(snapshot.ref);
+                uploadPromises.push(
+                    uploadFileWithProgress(thumbnail, `projects/${projectId}/thumbnail.jpg`, "thumbnail").then(
+                        (url) => (imageUrls.thumbnail = url)
+                    )
+                );
             }
 
             if (mainImage) {
-                const mainImageRef = ref(storage, `projects/${projectId}/mainImage.jpg`);
-                const snapshot = await uploadBytesResumable(mainImageRef, mainImage);
-                imageUrls.mainImage = await getDownloadURL(snapshot.ref);
+                uploadPromises.push(
+                    uploadFileWithProgress(mainImage, `projects/${projectId}/mainImage.jpg`, "mainImage").then(
+                        (url) => (imageUrls.mainImage = url)
+                    )
+                );
             }
 
             if (infoImage) {
-                const infoImageRef = ref(storage, `projects/${projectId}/infoImage.jpg`);
-                const snapshot = await uploadBytesResumable(infoImageRef, infoImage);
-                imageUrls.infoImage = await getDownloadURL(snapshot.ref);
+                uploadPromises.push(
+                    uploadFileWithProgress(infoImage, `projects/${projectId}/infoImage.jpg`, "infoImage").then(
+                        (url) => (imageUrls.infoImage = url)
+                    )
+                );
             }
+
+            await Promise.all(uploadPromises);
 
             const teamMembersWithProfilePics = await Promise.all(
                 teamMembers.map(async (member, index) => {
                     if (member.profilePic) {
                         const profilePicRef = ref(storage, `projects/${projectId}/team/${index}_profilePic.jpg`);
-                        const snapshot = await uploadBytesResumable(profilePicRef, member.profilePic);
-                        const profilePicURL = await getDownloadURL(snapshot.ref);
+                        const uploadTask = uploadBytesResumable(profilePicRef, member.profilePic);
 
-                        return {
-                            ...member,
-                            profilePic: profilePicURL
-                        };
+                        uploadTask.on("state_changed", (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress((prev) => ({
+                                ...prev,
+                                [`profilePic_${index}`]: progress,
+                            }));
+                        });
+
+                        await uploadTask;
+                        const profilePicURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        return { ...member, profilePic: profilePicURL };
                     } else {
                         return member;
                     }
@@ -248,8 +336,17 @@ const ProjectUpload = () => {
                 images: imageUrls,
             });
 
-            alert("프로젝트가 성공적으로 업로드되었습니다!");
-            navigate('/');
+            // 업로드가 성공적으로 완료되면 결과확인 페이지로 이동
+            navigate('/result', {
+                state: {
+                    title,
+                    subtitle,
+                    description,
+                    vimeoLink,
+                    images: imageUrls,
+                    teamMembers: teamMembersWithProfilePics
+                }
+            });
         } catch (error) {
             console.error("업로드 중 에러 발생:", error);
             alert("업로드 중 문제가 발생했습니다.");
@@ -257,6 +354,8 @@ const ProjectUpload = () => {
             setIsUploading(false);
         }
     };
+
+
 
     return (
         <Container>
@@ -266,6 +365,32 @@ const ProjectUpload = () => {
                 <div style={{ textAlign: 'center' }}>
                     <img src={"loading.gif"} alt="업로드 중" />
                     <p>업로드 중입니다. 잠시만 기다려주세요...</p>
+
+                    <h3>썸네일 업로드 진행</h3>
+                    <Progress>
+                        <ProgressBar progress={uploadProgress.thumbnail}>{Math.round(uploadProgress.thumbnail)}%</ProgressBar>
+                    </Progress>
+
+                    <h3>메인 이미지 업로드 진행</h3>
+                    <Progress>
+                        <ProgressBar progress={uploadProgress.mainImage}>{Math.round(uploadProgress.mainImage)}%</ProgressBar>
+                    </Progress>
+
+                    <h3>설명 이미지 업로드 진행</h3>
+                    <Progress>
+                        <ProgressBar progress={uploadProgress.infoImage}>{Math.round(uploadProgress.infoImage)}%</ProgressBar>
+                    </Progress>
+
+                    {teamMembers.map((member, index) => (
+                        <div key={index}>
+                            <h3>팀원 {index + 1}의 프로필 사진 업로드 진행</h3>
+                            <Progress>
+                                <ProgressBar progress={uploadProgress[`profilePic_${index}`] || 0}>
+                                    {Math.round(uploadProgress[`profilePic_${index}`] || 0)}%
+                                </ProgressBar>
+                            </Progress>
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -295,34 +420,34 @@ const ProjectUpload = () => {
                         onChange={(e) => setDescription(e.target.value)}
                     />
 
-                    <h2 style={{marginBottom:'20px'}}>팀원 정보 (팀작일 경우에만 팀원추가 버튼 클릭)</h2>
+                    <h2 style={{ marginBottom: '20px' }}>팀원 정보 (팀작일 경우에만 팀원추가 버튼 클릭)</h2>
                     {teamMembers.map((member, index) => (
                         <TeamMemberContainer key={index}>
-                            <Input
+                            <Input2
                                 type="text"
                                 placeholder="팀원 이름"
                                 value={member.name}
                                 onChange={(e) => handleTeamMemberChange(index, "name", e.target.value)}
                             />
-                            <Input
+                            <Input2
                                 type="text"
                                 placeholder="팀원 영어 이름 ex) Suk Sanghyeon"
                                 value={member.englishName}
                                 onChange={(e) => handleTeamMemberChange(index, "englishName", e.target.value)}
                             />
-                            <Input
+                            <Input2
                                 type="text"
                                 placeholder="팀원 학과 ex) 산업디자인공학과 or 미디어디자인공학과"
                                 value={member.department}
                                 onChange={(e) => handleTeamMemberChange(index, "department", e.target.value)}
                             />
-                            <Input
+                            <Input2
                                 type="email"
                                 placeholder="팀원 이메일"
                                 value={member.email}
                                 onChange={(e) => handleTeamMemberChange(index, "email", e.target.value)}
                             />
-                            <Input
+                            <Input2
                                 type="text"
                                 placeholder="팀원 인스타그램 (없을 경우 - 입력)"
                                 value={member.instagram}
@@ -333,7 +458,7 @@ const ProjectUpload = () => {
                                 type="file"
                                 onChange={(e) => handleTeamMemberChange(index, "profilePic", e.target.files[0])}
                             />
-                            {teamMembers.length > 1 && (
+                            {index > 0 && (
                                 <RemoveButton type="button" onClick={() => removeTeamMember(index)}>
                                     - 팀원 제거
                                 </RemoveButton>
@@ -341,7 +466,7 @@ const ProjectUpload = () => {
                         </TeamMemberContainer>
                     ))}
 
-                    <AddButton onClick={addTeamMember}>+ 팀원 추가</AddButton>
+                    {showAddButton && <AddButton onClick={addTeamMember}>+ 팀원 추가</AddButton>}
 
                     <h3>프로젝트 이미지</h3>
                     <Label>썸네일 이미지 추가</Label>
@@ -363,9 +488,6 @@ const ProjectUpload = () => {
                         프로젝트 업로드
                     </Button>
 
-                    <div style={{ whiteSpace: 'pre-wrap' }}>
-                        {description}
-                    </div>
                 </>
             )}
         </Container>

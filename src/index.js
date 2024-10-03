@@ -14,6 +14,7 @@ import ImageUpload from './adminBox/ImageUpload';
 import ProjectUpload from './adminBox/ProjectUpload';
 import UploadUserData from './adminBox/UploadUserData';
 import Login from './adminBox/Login';
+import ResultPage from './adminBox/ResultPage';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -21,6 +22,7 @@ root.render(
     <Routes>
       <Route index element={<Login />}></Route>
       <Route path="upload" element={<ProjectUpload />}></Route>
+      <Route path="result" element={<ResultPage />}></Route>
     </Routes>
   </BrowserRouter>
 
