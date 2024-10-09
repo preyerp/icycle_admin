@@ -64,26 +64,27 @@ const Login = () => {
 
     return (
         <div>
-            <h2>로그인</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            <form onSubmit={handleLogin}>
-                <input
-                    type="text"
-                    placeholder="ID"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                />
-                <input
-                    type="password"
-                    placeholder="비밀번호"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-                <button type="submit">로그인</button>
-            </form>
-
+            <div style={{ backgroundColor: '#F4B8C0', borderColor: '#E47080', borderStyle: 'dashed', borderWidth: '10px', margin: '10px', padding: '20px' }}>
+                <h2>메인 이미지 포함 다른 내용도 수정 원할 시 빨간박스 로그인</h2>
+                {error && <p style={{ color: 'red' }}>{error}</p>}
+                <form onSubmit={handleLogin}>
+                    <input
+                        type="text"
+                        placeholder="ID"
+                        value={userId}
+                        onChange={(e) => setUserId(e.target.value)}
+                    />
+                    <input
+                        type="password"
+                        placeholder="비밀번호"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button type="submit">로그인</button>
+                </form>
+            </div>
             <div style={{ backgroundColor: '#A8D5EF', borderColor: '#3682B4', borderStyle: 'dashed', borderWidth: '10px', margin: '10px', padding: '20px' }}>
-                <h1 style={{ color: 'red' }}>{'['}긴급{']'} 아래 로그인 후 {'"'}메인 이미지{'"'}만 재업로드</h1>
+                <h1 style={{ color: 'red' }}> 아래 로그인 후 {'"'}메인 이미지{'"'}만 재업로드</h1>
                 <h2 style={{ color: 'red' }}>※ 피그마에서 메인 이미지 픽셀 수를 두배로 뽑아서 제출</h2>
                 <h2 style={{ color: 'red' }}> ex{')'} 1920 700 -{'>'} 3840 1400 </h2>
                 {error2 && <p style={{ color: 'red' }}>{error2}</p>}

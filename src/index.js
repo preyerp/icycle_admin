@@ -28,6 +28,15 @@ root.render(
     </Routes>
   </BrowserRouter>
 
+  // <BrowserRouter basename={process.env.PUBLIC_URL}>
+  //   <Routes>
+  //     <Route index element={<FmotionTest />}></Route>
+  //     <Route path="upload" element={<ProjectUpload />}></Route>
+  //     <Route path="main_image_upload" element={<MainImageUpload />}></Route>
+  //     <Route path="result" element={<ResultPage />}></Route>
+  //   </Routes>
+  // </BrowserRouter>
+
   // <React.StrictMode>
 
   //   {/* <InteractionTest></InteractionTest> */}
